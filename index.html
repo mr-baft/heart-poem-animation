@@ -1,0 +1,276 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>انیمیشن تیغ و قلب با شعر - نسخه موبایل</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.4/Vazirmatn-font-face.css" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(#0f0f1a, #1a1a2e);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: 800px;
+      max-height: 600px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+<script>
+let blade = { x: 400, y: 300, displayX: 400, displayY: 300, width: 20, height: 50 };
+let heart = { x: 400, y: 300, size: 120, health: 9, shake: 0 };
+let heartPieces = [];
+let scratches = [];
+let bloodParticles = [];
+let rainDrops = [];
+let poemParticles = [];
+let poemLines = [
+  "همونم همون که با دست تنگ تو مشتم برات صدف داشتم",
+  "با این حال هم به هرکی که تو دلت خونه کرد شرف داشتم",
+  "گذشتم ازت نگاه کن منو نه حالم بده نه چشمم تره",
+  "شب آخره توهم هروقت ازم دور شی واست بهتره",
+  "شکستم درست بریدم قبول می‌دونی که من یه دندم هنوز",
+  "تماشام کن همه زهرمو کشیدن ولی کشندم هنوز",
+  "منو هیچکس منو هیچی مثل حرف تو نسوزونده بود",
+  "همین مونده بود خرابم کنی جوابم کنی همین مونده بود"
+];
+let poemIndex = 0;
+
+function setup() {
+  let canvas = createCanvas(min(windowWidth, 800), min(windowHeight, 600));
+  canvas.style('display', 'block');
+  textFont('Vazirmatn');
+  textSize(16);
+  textAlign(CENTER);
+  heart.x = width / 2;
+  heart.y = height / 2;
+  blade.x = width / 2;
+  blade.y = height / 2;
+  for (let i = 0; i < 100; i++) {
+    rainDrops.push({
+      x: random(width),
+      y: random(height),
+      speed: random(4, 8),
+      length: random(10, 20)
+    });
+  }
+}
+
+function draw() {
+  background(15, 15, 26, 200);
+  fill(15, 15, 26, 50);
+  rect(0, 0, width, height);
+
+  stroke(100, 100, 150, 150);
+  strokeWeight(1);
+  for (let drop of rainDrops) {
+    line(drop.x, drop.y, drop.x, drop.y + drop.length);
+    drop.y += drop.speed;
+    if (drop.y > height) {
+      drop.y = -drop.length;
+      drop.x = random(width);
+    }
+  }
+
+  if (touches.length > 0) {
+    blade.x = lerp(blade.x, touches[0].x, 0.2);
+    blade.y = lerp(blade.y, touches[0].y, 0.2);
+  } else {
+    blade.x = lerp(blade.x, mouseX, 0.2);
+    blade.y = lerp(blade.y, mouseY, 0.2);
+  }
+
+  if (heart.health > 0) {
+    let shakeX = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
+    let shakeY = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
+    drawHeart(heart.x + shakeX, heart.y + shakeY, heart.size);
+    heart.shake *= 0.95;
+  }
+
+  for (let piece of heartPieces) {
+    if (piece.alpha > 0) {
+      push();
+      translate(piece.x, piece.y);
+      rotate(piece.rotation * frameCount);
+      drawHeart(0, 0, piece.size);
+      pop();
+      piece.x += piece.vx;
+      piece.y += piece.vy;
+      piece.vy += 0.05;
+      piece.alpha -= 0.5;
+    }
+  }
+
+  for (let i = poemParticles.length - 1; i >= 0; i--) {
+    let p = poemParticles[i];
+    fill(255, 255, 255, p.alpha);
+    text(p.text, p.x, p.y);
+    p.x += p.vx;
+    p.y += p.vy + 0.1;
+    p.vx *= 0.99;
+    p.vy *= 0.99;
+    p.alpha -= 2;
+    if (p.alpha <= 0) poemParticles.splice(i, 1);
+  }
+
+  drawBlade(blade.x, blade.y, blade.width, blade.height);
+
+  if (heart.health > 0 && isBladeTouchingHeart()) {
+    if (frameCount % 8 === 0) {
+      scratches.push({
+        x1: blade.x + random(-15, 15),
+        y1: blade.y + random(-15, 15),
+        x2: blade.x + random(-25, 25),
+        y2: blade.y + random(-25, 25),
+        alpha: 255
+      });
+      for (let i = 0; i < 4; i++) {
+        bloodParticles.push({
+          x: blade.x,
+          y: blade.y,
+          vx: random(-2, 2),
+          vy: random(-2, 0),
+          alpha: 255,
+          size: random(3, 10)
+        });
+      }
+      if (poemIndex < poemLines.length) {
+        poemParticles.push({
+          x: blade.x,
+          y: blade.y,
+          vx: random(-1, 1),
+          vy: random(-2, 0),
+          alpha: 255,
+          text: poemLines[poemIndex]
+        });
+        poemIndex++;
+      }
+      heart.shake = 5;
+      heart.health--;
+      if (heart.health % 2 === 0) {
+        heartPieces.push({
+          x: heart.x + random(-20, 20),
+          y: heart.y + random(-20, 20),
+          size: random(20, 40),
+          vx: random(-1.5, 1.5),
+          vy: random(-2, 0),
+          rotation: random(-0.03, 0.03),
+          alpha: 255
+        });
+      }
+    }
+  }
+
+  for (let i = scratches.length - 1; i >= 0; i--) {
+    let scratch = scratches[i];
+    stroke(200, 0, 0, scratch.alpha);
+    strokeWeight(2);
+    line(scratch.x1, scratch.y1, scratch.x2, scratch.y2);
+    scratch.alpha -= 2;
+    if (scratch.alpha <= 0) scratches.splice(i, 1);
+  }
+
+  noStroke();
+  for (let i = bloodParticles.length - 1; i >= 0; i--) {
+    let p = bloodParticles[i];
+    fill(200, 0, 0, p.alpha);
+    ellipse(p.x, p.y, p.size, p.size);
+    p.x += p.vx;
+    p.y += p.vy + 0.1;
+    p.vx *= 0.99;
+    p.vy *= 0.99;
+    p.alpha -= 2;
+    p.size *= 0.995;
+    if (p.alpha <= 0) bloodParticles.splice(i, 1);
+  }
+}
+
+function drawHeart(x, y, size) {
+  fill(255, 0, 0);
+  noStroke();
+  beginShape();
+  vertex(x, y + size / 4);
+  bezierVertex(x - size / 2, y - size / 2, x - size, y, x, y + size);
+  vertex(x, y + size / 4);
+  bezierVertex(x + size / 2, y - size / 2, x + size, y, x, y + size);
+  endShape(CLOSE);
+}
+
+function drawBlade(x, y, w, h) {
+  fill(180, 180, 180);
+  noStroke();
+  beginShape();
+  vertex(x - w / 2, y + h / 2);
+  vertex(x - w / 2, y - h / 2);
+  vertex(x + w / 2, y - h / 2 + 10);
+  vertex(x + w / 2, y + h / 2);
+  endShape(CLOSE);
+  fill(220);
+  triangle(x - w / 2, y - h / 2, x + w / 2, y - h / 2 + 10, x, y - h / 2 - 10);
+}
+
+function isBladeTouchingHeart() {
+  let dx = blade.x - heart.x;
+  let dy = blade.y - heart.y;
+  let distance = sqrt(dx * dx + dy * dy);
+  return distance < heart.size / 2;
+}
+
+function windowResized() {
+  resizeCanvas(min(windowWidth, 800), min(windowHeight, 600));
+  heart.x = width / 2;
+  heart.y = height / 2;
+}
+</script>
+</body>
+</html>
