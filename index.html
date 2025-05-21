@@ -1,276 +1,493 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heart & Poem💔</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.4/Vazirmatn-font-face.css" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: linear-gradient(#0f0f1a, #1a1a2e);
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      max-width: 800px;
-      max-height: 600px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
-    }
-  </style>
-</head>
-<body>
-<script>
-let blade = { x: 400, y: 300, displayX: 400, displayY: 300, width: 20, height: 50 };
-let heart = { x: 400, y: 300, size: 120, health: 9, shake: 0 };
-let heartPieces = [];
-let scratches = [];
-let bloodParticles = [];
-let rainDrops = [];
-let poemParticles = [];
-let poemLines = [
-  "همونم همون که با دست تنگ تو مشتم برات صدف داشتم",
-  "با این حال هم به هرکی که تو دلت خونه کرد شرف داشتم",
-  "گذشتم ازت نگاه کن منو نه حالم بده نه چشمم تره",
-  "شب آخره توهم هروقت ازم دور شی واست بهتره",
-  "شکستم درست بریدم قبول می‌دونی که من یه دندم هنوز",
-  "تماشام کن همه زهرمو کشیدن ولی کشندم هنوز",
-  "منو هیچکس منو هیچی مثل حرف تو نسوزونده بود",
-  "همین مونده بود خرابم کنی جوابم کنی همین مونده بود"
-];
-let poemIndex = 0;
-
-function setup() {
-  let canvas = createCanvas(min(windowWidth, 800), min(windowHeight, 600));
-  canvas.style('display', 'block');
-  textFont('Vazirmatn');
-  textSize(16);
-  textAlign(CENTER);
-  heart.x = width / 2;
-  heart.y = height / 2;
-  blade.x = width / 2;
-  blade.y = height / 2;
-  for (let i = 0; i < 100; i++) {
-    rainDrops.push({
-      x: random(width),
-      y: random(height),
-      speed: random(4, 8),
-      length: random(10, 20)
-    });
-  }
-}
-
-function draw() {
-  background(15, 15, 26, 200);
-  fill(15, 15, 26, 50);
-  rect(0, 0, width, height);
-
-  stroke(100, 100, 150, 150);
-  strokeWeight(1);
-  for (let drop of rainDrops) {
-    line(drop.x, drop.y, drop.x, drop.y + drop.length);
-    drop.y += drop.speed;
-    if (drop.y > height) {
-      drop.y = -drop.length;
-      drop.x = random(width);
-    }
-  }
-
-  if (touches.length > 0) {
-    blade.x = lerp(blade.x, touches[0].x, 0.2);
-    blade.y = lerp(blade.y, touches[0].y, 0.2);
-  } else {
-    blade.x = lerp(blade.x, mouseX, 0.2);
-    blade.y = lerp(blade.y, mouseY, 0.2);
-  }
-
-  if (heart.health > 0) {
-    let shakeX = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
-    let shakeY = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
-    drawHeart(heart.x + shakeX, heart.y + shakeY, heart.size);
-    heart.shake *= 0.95;
-  }
-
-  for (let piece of heartPieces) {
-    if (piece.alpha > 0) {
-      push();
-      translate(piece.x, piece.y);
-      rotate(piece.rotation * frameCount);
-      drawHeart(0, 0, piece.size);
-      pop();
-      piece.x += piece.vx;
-      piece.y += piece.vy;
-      piece.vy += 0.05;
-      piece.alpha -= 0.5;
-    }
-  }
-
-  for (let i = poemParticles.length - 1; i >= 0; i--) {
-    let p = poemParticles[i];
-    fill(255, 255, 255, p.alpha);
-    text(p.text, p.x, p.y);
-    p.x += p.vx;
-    p.y += p.vy + 0.1;
-    p.vx *= 0.99;
-    p.vy *= 0.99;
-    p.alpha -= 2;
-    if (p.alpha <= 0) poemParticles.splice(i, 1);
-  }
-
-  drawBlade(blade.x, blade.y, blade.width, blade.height);
-
-  if (heart.health > 0 && isBladeTouchingHeart()) {
-    if (frameCount % 8 === 0) {
-      scratches.push({
-        x1: blade.x + random(-15, 15),
-        y1: blade.y + random(-15, 15),
-        x2: blade.x + random(-25, 25),
-        y2: blade.y + random(-25, 25),
-        alpha: 255
-      });
-      for (let i = 0; i < 4; i++) {
-        bloodParticles.push({
-          x: blade.x,
-          y: blade.y,
-          vx: random(-2, 2),
-          vy: random(-2, 0),
-          alpha: 255,
-          size: random(3, 10)
-        });
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Heart & Poem💔</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.4/Vazirmatn-font-face.css"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        font-family: "Vazirmatn", "Noto Serif", sans-serif;
       }
-      if (poemIndex < poemLines.length) {
-        poemParticles.push({
-          x: blade.x,
-          y: blade.y,
-          vx: random(-1, 1),
-          vy: random(-2, 0),
-          alpha: 255,
-          text: poemLines[poemIndex]
-        });
-        poemIndex++;
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(#0f0f1a, #1a1a2e);
+        font-family: "Vazirmatn", "Noto Serif", sans-serif;
       }
-      heart.shake = 5;
-      heart.health--;
-      if (heart.health % 2 === 0) {
-        heartPieces.push({
-          x: heart.x + random(-20, 20),
-          y: heart.y + random(-20, 20),
-          size: random(20, 40),
-          vx: random(-1.5, 1.5),
-          vy: random(-2, 0),
-          rotation: random(-0.03, 0.03),
-          alpha: 255
-        });
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: 800px;
+        max-height: 600px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
       }
-    }
-  }
+      #controls {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
 
-  for (let i = scratches.length - 1; i >= 0; i--) {
-    let scratch = scratches[i];
-    stroke(200, 0, 0, scratch.alpha);
-    strokeWeight(2);
-    line(scratch.x1, scratch.y1, scratch.x2, scratch.y2);
-    scratch.alpha -= 2;
-    if (scratch.alpha <= 0) scratches.splice(i, 1);
-  }
+      #songSelect {
+        padding: 8px 32px;
+        font-size: 14px;
+        background-color: rgba(30, 30, 50, 0.8);
+        color: #e0e0e0;
+        border: 1px solid #3a3a5a;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: "Vazirmatn", "Noto Serif", sans-serif;
+      }
 
-  noStroke();
-  for (let i = bloodParticles.length - 1; i >= 0; i--) {
-    let p = bloodParticles[i];
-    fill(200, 0, 0, p.alpha);
-    ellipse(p.x, p.y, p.size, p.size);
-    p.x += p.vx;
-    p.y += p.vy + 0.1;
-    p.vx *= 0.99;
-    p.vy *= 0.99;
-    p.alpha -= 2;
-    p.size *= 0.995;
-    if (p.alpha <= 0) bloodParticles.splice(i, 1);
-  }
-}
+      #resetButton {
+        padding: 8px 32px;
+        font-size: 14px;
+        background-color: rgba(101, 28, 28, 0.8);
+        color: #e0e0e0;
+        border: 1px solid #6f2f2f;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: "Vazirmatn", "Noto Serif", sans-serif;
+      }
 
-function drawHeart(x, y, size) {
-  fill(255, 0, 0);
-  noStroke();
-  beginShape();
-  vertex(x, y + size / 4);
-  bezierVertex(x - size / 2, y - size / 2, x - size, y, x, y + size);
-  vertex(x, y + size / 4);
-  bezierVertex(x + size / 2, y - size / 2, x + size, y, x, y + size);
-  endShape(CLOSE);
-}
+      #songSelect:hover {
+        background-color: #3a3a5a;
+        color: #ffffff;
+      }
 
-function drawBlade(x, y, w, h) {
-  fill(180, 180, 180);
-  noStroke();
-  beginShape();
-  vertex(x - w / 2, y + h / 2);
-  vertex(x - w / 2, y - h / 2);
-  vertex(x + w / 2, y - h / 2 + 10);
-  vertex(x + w / 2, y + h / 2);
-  endShape(CLOSE);
-  fill(220);
-  triangle(x - w / 2, y - h / 2, x + w / 2, y - h / 2 + 10, x, y - h / 2 - 10);
-}
+      #resetButton:hover {
+        background-color: #5a3a3a;
+        color: #ffffff;
+      }
 
-function isBladeTouchingHeart() {
-  let dx = blade.x - heart.x;
-  let dy = blade.y - heart.y;
-  let distance = sqrt(dx * dx + dy * dy);
-  return distance < heart.size / 2;
-}
+      #songSelect {
+        background-color: rgba(30, 30, 50, 0.8);
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        padding-right: 30px;
+        background-image: url('data:image/svg+xml;utf8,<svg fill="%23e0e0e0" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+        background-repeat: no-repeat;
+        background-position: left 10px center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <select id="songSelect">
+        <option value="0">گذشتم ازت - چاووشی</option>
+        <option value="1">کجایی - چاووشی</option>
+        <option value="2">بعد از تو - چاووشی</option>
+      </select>
+      <button id="resetButton">دوباره</button>
+    </div>
+    <script>
+      let blade = {
+        x: 400,
+        y: 300,
+        displayX: 400,
+        displayY: 300,
+        width: 60,
+        height: 120,
+      };
 
-function windowResized() {
-  resizeCanvas(min(windowWidth, 800), min(windowHeight, 600));
-  heart.x = width / 2;
-  heart.y = height / 2;
-}
-</script>
-</body>
+      let heartPieces = [];
+      let scratches = [];
+      let bloodParticles = [];
+      let rainDrops = [];
+      let poemParticles = [];
+      let isBladeActive = false;
+      let heartImg, bladeImg;
+      //   let bgMusic = [];
+      let introMessage = true;
+      let endAnimation = false;
+      let endAlpha = 0;
+
+      let poems = [
+        [
+          "همونم همون که با دست تنگ تو مشتم برات صدف داشتم",
+          "با این حال هم به هرکی که تو دلت خونه کرد شرف داشتم",
+          "گذشتم ازت نگاه کن منو نه حالم بده نه چشمم تره",
+          "شب آخره توهم هروقت ازم دور شی واست بهتره",
+          "شکستم درست بریدم قبول می‌دونی که من یه دندم هنوز",
+          "تماشام کن همه زهرمو کشیدن ولی کشندم هنوز",
+          "منو هیچکس منو هیچی مثل حرف تو نسوزونده بود",
+          "همین مونده بود خرابم کنی جوابم کنی همین مونده بود",
+        ],
+        [
+          "یه پاییز زرد و زمستون سرد و",
+          "یه زندون تنگ و یه زخم قشنگ و",
+          "غم جمعه عصر و غریبی حصر و",
+          "یه دنیا سوالو تو سینم گذاشتی",
+          "جهانی دروغ و یه دنیا غروب و",
+          "یه درد عمیق و یه تیزی تیغ و",
+          "یه قلب مریض و یه آه غلیظ و",
+          "یه دنیا محالو تو سینم گذاشتی",
+          "رفیقم کجایی؟ دقیقاً کجایی؟",
+          "کجایی تو بی من، تو بی من کجایی؟",
+          "یه دنیا غریبم",
+          "کجایی عزیزم",
+          "بیا تا چشامو تو چشمات بریزم",
+          "نگو دل بریدی خدایی نکرده",
+          "ببین خواب چشمات با چشمام چه کرده",
+          "همه جا رو گشتم",
+          "کجایی عزیزم",
+          "بیا تا رگامو تو خونت بریزم",
+          "بیا روتو رو کن منو زیر و رو کن",
+          "بیا زخمامو یه جوری رفو کن",
+          "عزیزم کجایی؟ دقیقاً کجایی؟",
+          "کجایی تو بی من، تو بی من کجایی؟",
+        ],
+        [
+          "من دلم از دست دنیا خونه دیگه",
+          "میرم از من سایه‌ای می‌مونه دیگه",
+          "سینه‌ای که اسم تو فریاد می‌زد",
+          "بعد تو سینه‌ی قبرستونه دیگه",
+          "گر گرفتم مثل یه باغ هراسون",
+          "قد کشیدم مثل یه فواره‌ی خون",
+          "این مسیر رو برنمی‌گردم دوباره",
+          "دست بجنبون، مرگ خستم، دست بجنبون",
+          "پلک می‌بندم میون گریه‌های بی‌اراده‌م",
+          "دستتو دورم نگه‌دار، من یه شمع رو به بادم",
+          "من مثل زیبایی تو از سر دنیا زیادم",
+          "هم خودم مردم عزیزم، هم عزیز از دست دادم",
+          "چشم وا کردم که دنیا رو ببینم",
+          "سنگ قبرارو به اسمم کرده بودن",
+          "چی بگم تا باورت شه بی‌گناهم؟",
+          "چی بگم وقتی طلسمم کرده بودن؟",
+          "درد داره این که پاسوز یه شهریم",
+          "این که دلسوزی نداریم درد داره",
+          "درد داره این که وایستی تا خود مرگ",
+          "از تنت رخت عزا رو در بیاره",
+          "پلک می‌بندم میون گریه‌های بی‌اراده‌م",
+          "دستتو دورم نگه‌دار، من یه شمع رو به بادم",
+          "من مثل زیبایی تو از سر دنیا زیادم",
+          "هم خودم مردم عزیزم، هم عزیز از دست دادم",
+        ],
+      ];
+
+      let currentPoem = poems[0];
+      let poemIndex = 0;
+
+      let heart = {
+        x: 400,
+        y: 300,
+        size: 212,
+        health: currentPoem.length + 1,
+        shake: 0,
+      };
+
+      function preload() {
+        heartImg = loadImage("heart-svgrepo-com.svg");
+        bladeImg = loadImage("knife-svgrepo-com.svg");
+        // برای موسیقی، فایل‌های MP3 رو آپلود کن و لینک‌ها رو اینجا بذار
+        // bgMusic[0] = loadSound("https://cdn.glitch.global/your-project-id/passtam-azat.mp3");
+        // bgMusic[1] = loadSound("https://cdn.glitch.global/your-project-id/kojai.mp3");
+        // bgMusic[2] = loadSound("https://cdn.glitch.global/your-project-id/baad-az-to.mp3");
+      }
+
+      function setup() {
+        let canvas = createCanvas(
+          min(windowWidth, 800),
+          min(windowHeight, 600)
+        );
+        canvas.style("display", "block");
+        textFont("Vazirmatn", 16);
+        textAlign(CENTER);
+        heart.x = width / 2;
+        heart.y = height / 2;
+        blade.x = width / 2;
+        blade.y = height / 2;
+        heart.health = currentPoem.length + 1;
+        for (let i = 0; i < 100; i++) {
+          rainDrops.push({
+            x: random(width),
+            y: random(height),
+            speed: random(4, 8),
+            length: random(10, 20),
+          });
+        }
+
+        let songSelect = document.getElementById("songSelect");
+        songSelect.addEventListener("change", function () {
+          currentPoem = poems[parseInt(this.value)];
+          // اگر موسیقی داری، موسیقی قبلی رو متوقف کن و جدید رو پخش کن
+          // if (bgMusic[songSelect.value]) {
+          //   bgMusic.forEach((sound, i) => {
+          //     if (i != songSelect.value && sound.isPlaying()) sound.stop();
+          //   });
+          //   bgMusic[songSelect.value].loop();
+          // }
+          resetAnimation();
+        });
+
+        let resetButton = document.getElementById("resetButton");
+        resetButton.addEventListener("click", resetAnimation);
+      }
+
+      function draw() {
+        // تغییر رنگ پس‌زمینه بر اساس health
+        let red = map(heart.health, currentPoem.length + 1, 0, 15, 50);
+        background(red, 15, 26, 200);
+        fill(red, 15, 26, 50);
+        rect(0, 0, width, height);
+
+        // باران
+        stroke(100, 100, 150, 150);
+        strokeWeight(1);
+        for (let drop of rainDrops) {
+          line(drop.x, drop.y, drop.x, drop.y + drop.length);
+          drop.y += drop.speed;
+          if (drop.y > height) {
+            drop.y = -drop.length;
+            drop.x = random(width);
+          }
+        }
+
+        // حرکت چاقو
+        if (touches.length > 0) {
+          blade.x = lerp(blade.x, touches[0].x, 0.2);
+          blade.y = lerp(blade.y, touches[0].y, 0.2);
+        } else {
+          blade.x = lerp(blade.x, mouseX, 0.2);
+          blade.y = lerp(blade.y, mouseY, 0.2);
+        }
+
+        // // پیام اولیه
+        // if (introMessage) {
+        //   fill(255, 255, 255, 200);
+        //   textSize(20);
+        //   text("قلب رو بشکن...", width / 2, height / 2 - 100);
+        //   textSize(16); // برگرد به سایز اصلی
+        // }
+
+        // قلب با ضربان
+        if (heart.health > 0) {
+          let pulse = 212 + 10 * sin(frameCount * 0.05); // ضربان بین 202 و 222
+          let shakeX = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
+          let shakeY = heart.shake > 0 ? random(-heart.shake, heart.shake) : 0;
+          // سایه برای قلب
+          drawingContext.shadowBlur = 20;
+          drawingContext.shadowColor = "rgba(255, 0, 0, 0.5)";
+          image(
+            heartImg,
+            heart.x + shakeX - pulse / 2,
+            heart.y + shakeY - pulse / 2,
+            pulse,
+            pulse
+          );
+          drawingContext.shadowBlur = 0; // خاموش کردن سایه
+          heart.shake *= 0.95;
+        }
+
+        // تکه‌های قلب
+        for (let piece of heartPieces) {
+          if (piece.alpha > 0) {
+            push();
+            translate(piece.x, piece.y);
+            rotate(piece.rotation * frameCount);
+            image(
+              heartImg,
+              -piece.size / 2,
+              -piece.size / 2,
+              piece.size,
+              piece.size
+            );
+            pop();
+            piece.x += piece.vx;
+            piece.y += piece.vy;
+            piece.vy += 0.05;
+            piece.alpha -= 0.5;
+          }
+        }
+
+        // متن شعر با حرکت چرخشی
+        for (let i = poemParticles.length - 1; i >= 0; i--) {
+          let p = poemParticles[i];
+          fill(255, 255, 255, p.alpha);
+          push();
+          translate(p.x, p.y);
+          //   rotate(p.rotation * frameCount);
+          text(p.text, 0, 0);
+          pop();
+          p.x += p.vx;
+          p.y += p.vy + 0.1;
+          p.vx *= 0.99;
+          p.vy *= 0.99;
+          p.rotation += 0.01;
+          p.alpha -= 2;
+          if (p.alpha <= 0) poemParticles.splice(i, 1);
+        }
+
+        // چاقو با سایه
+        drawingContext.shadowBlur = 15;
+        drawingContext.shadowColor = "rgba(255, 255, 255, 0.3)";
+        image(
+          bladeImg,
+          blade.x - blade.width / 2,
+          blade.y - blade.height / 2,
+          blade.width,
+          blade.height
+        );
+        drawingContext.shadowBlur = 0;
+
+        // انیمیشن پایان
+        if (heart.health <= 0 && !endAnimation) {
+          endAnimation = true;
+          for (let i = 0; i < 20; i++) {
+            heartPieces.push({
+              x: heart.x + random(-30, 30),
+              y: heart.y + random(-30, 30),
+              size: random(20, 40),
+              vx: random(-3, 3),
+              vy: random(-3, 0),
+              rotation: random(-0.05, 0.05),
+              alpha: 255,
+            });
+          }
+        }
+        if (endAnimation) {
+          endAlpha += 2;
+          fill(200, 0, 0, endAlpha);
+          rect(0, 0, width, height);
+          if (endAlpha >= 255) endAlpha = 255;
+        }
+
+        // تشخیص ضربه
+        let isTouching = isBladeTouchingHeart();
+        if (heart.health > 0 && isTouching && !isBladeActive) {
+          if (frameCount % 8 === 0) {
+            isBladeActive = true;
+            introMessage = false; // خاموش کردن پیام اولیه
+            scratches.push({
+              x1: blade.x + random(-15, 15),
+              y1: blade.y + random(-15, 15),
+              x2: blade.x + random(-25, 25),
+              y2: blade.y + random(-25, 25),
+              alpha: 255,
+            });
+            // ذرات خون پیشرفته
+            for (let i = 0; i < 6; i++) {
+              bloodParticles.push({
+                x: blade.x,
+                y: blade.y,
+                vx: random(-3, 3),
+                vy: random(-3, -1),
+                alpha: 255,
+                size: random(5, 15),
+                arc: random(-0.1, 0.1),
+              });
+            }
+            if (poemIndex < currentPoem.length) {
+              poemParticles.push({
+                x: blade.x,
+                y: blade.y,
+                vx: random(-1, 1),
+                vy: random(-2, 0),
+                alpha: 255,
+                text: currentPoem[poemIndex],
+                rotation: random(-0.02, 0.02),
+              });
+              poemIndex++;
+            }
+            heart.shake = 5;
+            heart.health--;
+            if (heart.health % 2 === 0) {
+              heartPieces.push({
+                x: heart.x + random(-20, 20),
+                y: heart.y + random(-20, 20),
+                size: random(20, 40),
+                vx: random(-1.5, 1.5),
+                vy: random(-2, 0),
+                rotation: random(-0.03, 0.03),
+                alpha: 255,
+              });
+            }
+          }
+        }
+        if (!isTouching) {
+          isBladeActive = false;
+        }
+
+        // خط و خش‌ها
+        for (let i = scratches.length - 1; i >= 0; i--) {
+          let scratch = scratches[i];
+          stroke(200, 0, 0, scratch.alpha);
+          strokeWeight(2);
+          line(scratch.x1, scratch.y1, scratch.x2, scratch.y2);
+          scratch.alpha -= 2;
+          if (scratch.alpha <= 0) scratches.splice(i, 1);
+        }
+
+        // ذرات خون
+        noStroke();
+        for (let i = bloodParticles.length - 1; i >= 0; i--) {
+          let p = bloodParticles[i];
+          fill(200, 0, 0, p.alpha);
+          ellipse(p.x, p.y, p.size, p.size);
+          p.x += p.vx + p.arc * frameCount;
+          p.y += p.vy + 0.15;
+          p.vx *= 0.98;
+          p.vy *= 0.98;
+          p.alpha -= 2;
+          p.size *= 0.99;
+          if (p.alpha <= 0) bloodParticles.splice(i, 1);
+        }
+      }
+
+      function isBladeTouchingHeart() {
+        let dx = blade.x - heart.x;
+        let dy = blade.y - heart.y;
+        let distance = sqrt(dx * dx + dy * dy);
+        return distance < heart.size / 2;
+      }
+
+      function resetAnimation() {
+        heart = {
+          x: width / 2,
+          y: height / 2,
+          size: 212,
+          health: currentPoem.length + 1,
+          shake: 0,
+        };
+        blade = {
+          x: width / 2,
+          y: height / 2,
+          displayX: width / 2,
+          displayY: height / 2,
+          width: 60,
+          height: 120,
+        };
+        heartPieces = [];
+        scratches = [];
+        bloodParticles = [];
+        poemParticles = [];
+        poemIndex = 0;
+        isBladeActive = false;
+        introMessage = true;
+        endAnimation = false;
+        endAlpha = 0;
+      }
+
+      function windowResized() {
+        resizeCanvas(min(windowWidth, 800), min(windowHeight, 600));
+        heart.x = width / 2;
+        heart.y = height / 2;
+      }
+    </script>
+  </body>
 </html>
